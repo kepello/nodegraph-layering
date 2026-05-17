@@ -14,7 +14,13 @@
  * cluster id list plus a Map from cluster id to its dependency
  * targets. Output includes per-cluster layer + cycle id plus the
  * cycles themselves and the topological order of the condensation.
+ *
+ * SCC computation delegates to `@kepello/nodegraph-core/algorithms`
+ * (extracted 2026-05-17 per Fathom row 5.0.9 — same iterative Tarjan
+ * shared with `nodegraph-analysis`'s cycle-detection derivations).
  */
+
+import { tarjanScc } from "@kepello/nodegraph-core/algorithms";
 
 export interface LayeringInput {
   /** Every cluster participating in the analysis. Order is irrelevant. */
@@ -55,95 +61,18 @@ export interface LayeringResult {
 }
 
 /**
- * Tarjan's SCC algorithm. Iterative-style implementation that uses
- * an explicit call stack so cluster graphs of arbitrary depth never
- * exhaust Node's recursion budget.
- */
-function tarjanSCC(
-  clusterIds: readonly string[],
-  dependsOn: ReadonlyMap<string, readonly string[]>,
-): string[][] {
-  let index = 0;
-  const indices = new Map<string, number>();
-  const lowlinks = new Map<string, number>();
-  const onStack = new Set<string>();
-  const stack: string[] = [];
-  const sccs: string[][] = [];
-
-  type Frame = {
-    node: string;
-    children: readonly string[];
-    childIdx: number;
-  };
-  const callStack: Frame[] = [];
-
-  function pushNode(v: string): void {
-    indices.set(v, index);
-    lowlinks.set(v, index);
-    index += 1;
-    stack.push(v);
-    onStack.add(v);
-    callStack.push({ node: v, children: dependsOn.get(v) ?? [], childIdx: 0 });
-  }
-
-  function finishNode(v: string): void {
-    if (lowlinks.get(v) === indices.get(v)) {
-      const scc: string[] = [];
-      while (stack.length > 0) {
-        const w = stack.pop() as string;
-        onStack.delete(w);
-        scc.push(w);
-        if (w === v) break;
-      }
-      sccs.push(scc);
-    }
-  }
-
-  for (const v of clusterIds) {
-    if (indices.has(v)) continue;
-    pushNode(v);
-    while (callStack.length > 0) {
-      const top = callStack[callStack.length - 1];
-      if (top.childIdx < top.children.length) {
-        const w = top.children[top.childIdx++];
-        // Skip self-loops in the cluster-dependency graph.
-        if (w === top.node) continue;
-        if (!indices.has(w)) {
-          pushNode(w);
-        } else if (onStack.has(w)) {
-          lowlinks.set(
-            top.node,
-            Math.min(lowlinks.get(top.node) as number, indices.get(w) as number),
-          );
-        }
-        // (Resolved-not-on-stack neighbors don't contribute to lowlink.)
-      } else {
-        callStack.pop();
-        finishNode(top.node);
-        // Propagate lowlink up to parent.
-        if (callStack.length > 0) {
-          const parent = callStack[callStack.length - 1];
-          lowlinks.set(
-            parent.node,
-            Math.min(
-              lowlinks.get(parent.node) as number,
-              lowlinks.get(top.node) as number,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  return sccs;
-}
-
-/**
  * Condense the SCC graph to a DAG of super-nodes, then topo-sort + assign
  * layer numbers. Returns the result projected back to original clusters.
  */
 export function computeLayering(input: LayeringInput): LayeringResult {
-  const sccs = tarjanSCC(input.clusterIds, input.dependsOn);
+  // Delegate SCC computation to the shared utility. The shared Tarjan
+  // tracks self-loops; the Lakos pipeline ignores them (cluster
+  // self-loops aren't a cycle for layering purposes — a single cluster
+  // depending on itself doesn't create a level violation).
+  const { sccs } = tarjanScc<string>({
+    nodes: input.clusterIds,
+    successors: (n) => input.dependsOn.get(n) ?? [],
+  });
 
   // Map cluster id → SCC index.
   const sccIndex = new Map<string, number>();

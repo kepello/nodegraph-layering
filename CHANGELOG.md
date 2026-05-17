@@ -2,6 +2,23 @@
 
 All notable changes to `@kepello/nodegraph-layering`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] — 2026-05-17
+
+Refactor — local `tarjanSCC` implementation replaced by `@kepello/nodegraph-core/algorithms`'s `tarjanScc`. Closes Fathom row 5.0.9 (the layering side); shared with `nodegraph-analysis@2.13.0`.
+
+### Changed
+
+- `computeLayering` delegates SCC computation to the shared utility. The Lakos pipeline still treats cluster self-loops as non-cycles (a single cluster depending on itself doesn't violate level rules — preserves the prior `if (w === top.node) continue` behavior via downstream `srcSccIndex === tgtSccIndex` filtering).
+- Deleted ~75 LOC of duplicated Tarjan implementation from `src/algorithm.ts`.
+
+### Tests
+
+- New shared-fixture test (`computeLayering — shared tarjanScc fixtures (testing.md Rule 5)`) exercises the canonical `tarjanSccFixtures` list through `computeLayering` and asserts cycle output matches the size-> 1 SCCs. 39/39 tests pass.
+
+### Bumps
+
+- New peer dep `@kepello/nodegraph-core: ^1.4.0` (was a transitive-only relationship via nodegraph-clusters).
+
 ## [0.1.0] — 2026-05-14
 
 Initial publish. Fourth layer of the workspace Layered Code Abstraction arc (Fathom work row `l4-layering-analysis` 3.1.4, per `docs/code_abstraction.md` L4).

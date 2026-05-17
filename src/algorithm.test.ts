@@ -14,6 +14,10 @@
 
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
+import {
+  normalizeSccs,
+  tarjanSccFixtures,
+} from "@kepello/nodegraph-core/algorithms";
 import { computeLayering } from "./algorithm.js";
 
 function depsFromPairs(
@@ -174,4 +178,33 @@ test("computeLayering — condensation order: sinks first, sources last", () => 
   });
   assert.equal(result.condensation[0][0], "C");
   assert.equal(result.condensation[2][0], "A");
+});
+
+// Per testing.md Rule 5 ("algorithms with multiple implementations
+// MUST share fixtures"): exercise the shared Tarjan SCC fixture suite
+// through the layering pipeline. computeLayering's cycle output (size-
+// > 1 SCCs only) must match the canonical SCC membership for every
+// fixture except the self-loop singleton, which layering intentionally
+// treats as not-a-cycle (a cluster depending on itself doesn't violate
+// Lakos level rules).
+test("computeLayering — shared tarjanScc fixtures (testing.md Rule 5)", () => {
+  for (const fixture of tarjanSccFixtures) {
+    const dependsOn = new Map<string, string[]>();
+    for (const [src, targets] of Object.entries(fixture.edges)) {
+      dependsOn.set(src, [...targets]);
+    }
+    const result = computeLayering({
+      clusterIds: [...fixture.nodes],
+      dependsOn,
+    });
+    // Layering's `cycles` excludes size-1 SCCs (incl. self-loops).
+    const expectedCycles = fixture.expectedSccs
+      .filter((s) => s.length > 1)
+      .map((s) => [...s]);
+    assert.deepEqual(
+      normalizeSccs(result.cycles),
+      normalizeSccs(expectedCycles),
+      `fixture ${fixture.name}: cycles`,
+    );
+  }
 });
