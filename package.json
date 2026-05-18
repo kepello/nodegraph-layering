@@ -1,6 +1,6 @@
 {
   "name": "@kepello/nodegraph-layering",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Layering analysis for recovered clusters (Lakos levelization + violation detection + DSM rendering). Fourth layer of the Layered Code Abstraction arc.",
   "type": "module",
   "main": "dist/index.js",

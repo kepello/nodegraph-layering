@@ -2,6 +2,24 @@
 
 All notable changes to `@kepello/nodegraph-layering`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] — 2026-05-17
+
+Fix — `findGodClusters` percentile threshold no longer collapses to 0 on power-law fan-in distributions. Closes Fathom row 5.0.18 (round-4 Opus pilot F5).
+
+### Fixed
+
+- Previous behavior: percentile cutoff was computed over the FULL distribution of incoming-edge counts. On a workspace where most clusters had 0 inbound deps (e.g., 431/448 leaf clusters on Fathom), the 95th-percentile cutoff landed in the zero-tail, so `thresholdValue=0` and any cluster with ≥1 inbound dep got flagged as a god-cluster. Round-4 Opus pilot F5 surfaced 18 god-clusters reported, 6 of them with `incomingCount` of just 1 or 2.
+- New behavior: (a) percentile is computed over clusters with `count > 0` only — the zero-tail no longer drags the cutoff down; (b) the threshold is floored at `minThresholdValue` (default 3) so a workspace with many incoming=1 clusters doesn't flag them all.
+- `GodClusterOptions` gains `minThresholdValue?: number` for the floor (default 3). Operators can lower to 1 for small-workspace probing.
+
+### Tests
+
+- New: power-law fan-in (90 zero-counts + small long tail) emits only clusters above the floor, not every non-zero cluster.
+- New: all-zero workspace returns empty (no candidates).
+- New: minThresholdValue override (operator can opt down to 1).
+- Existing tests updated where they relied on the unfloored behavior to set `minThresholdValue: 1` explicitly.
+- All 43/43 package tests pass.
+
 ## [0.2.0] — 2026-05-17
 
 Refactor — local `tarjanSCC` implementation replaced by `@kepello/nodegraph-core/algorithms`'s `tarjanScc`. Closes Fathom row 5.0.9 (the layering side); shared with `nodegraph-analysis@2.13.0`.

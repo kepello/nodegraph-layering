@@ -114,6 +114,15 @@ export interface GodClusterOptions {
    * where every cluster is in the top 5%. Default 5.
    */
   minClusterCount?: number;
+  /**
+   * Hard floor on the computed threshold. The 95th percentile can
+   * collapse to a meaningless value on power-law fan-in distributions
+   * (Fathom row 5.0.18: 431/448 clusters with 0 inbound edges → p95=0
+   * → any cluster with ≥1 inbound flagged). Clusters with fewer than
+   * this many incoming edges are never god-clusters regardless of
+   * percentile. Default 3.
+   */
+  minThresholdValue?: number;
 }
 
 /**
@@ -121,6 +130,12 @@ export interface GodClusterOptions {
  * is computed by the caller as a map from cluster id to its incoming
  * edge count (sum of edgeCount across all dependsOn entries pointing
  * AT it). Empty / small inputs short-circuit to empty output.
+ *
+ * Fathom row 5.0.18: percentile is computed over clusters with ≥1
+ * inbound edge only (excluding the long tail of zero-fan-in leaves),
+ * AND the computed threshold is floored at `minThresholdValue` to
+ * prevent the rule from collapsing to "any cluster with one inbound
+ * dep" on power-law distributions.
  *
  * Output is sorted by descending incoming count, then by cluster id
  * ascending for stable ties.
@@ -131,13 +146,21 @@ export function findGodClusters(
 ): GodClusterViolation[] {
   const thresholdPercentile = options.thresholdPercentile ?? 95;
   const minClusterCount = options.minClusterCount ?? 5;
+  const minThresholdValue = options.minThresholdValue ?? 3;
   if (incomingByCluster.size < minClusterCount) return [];
 
-  // Percentile of incoming counts. Sort ascending, pick the cutoff
-  // at the (thresholdPercentile / 100)-th position.
-  const counts = [...incomingByCluster.values()].sort((a, b) => a - b);
-  const cutoffIdx = Math.floor((thresholdPercentile / 100) * (counts.length - 1));
-  const thresholdValue = counts[cutoffIdx];
+  // Percentile of non-zero incoming counts only. Including the
+  // long tail of zero-fan-in clusters drags the percentile cutoff
+  // into the zero-tail on power-law distributions, which makes the
+  // threshold meaningless. Then floor the result so a workspace with
+  // many incoming=1 clusters doesn't flag them all.
+  const nonZero = [...incomingByCluster.values()].filter((c) => c > 0).sort((a, b) => a - b);
+  let thresholdValue: number;
+  if (nonZero.length === 0) {
+    return [];
+  }
+  const cutoffIdx = Math.floor((thresholdPercentile / 100) * (nonZero.length - 1));
+  thresholdValue = Math.max(nonZero[cutoffIdx]!, minThresholdValue);
 
   const violations: GodClusterViolation[] = [];
   for (const [clusterId, count] of incomingByCluster) {

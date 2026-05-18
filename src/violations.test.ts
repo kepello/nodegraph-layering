@@ -207,9 +207,75 @@ test("findGodClusters — output sorted by descending incoming count", () => {
   const violations = findGodClusters(incoming, {
     thresholdPercentile: 50,
     minClusterCount: 1,
+    minThresholdValue: 1,
   });
   assert.ok(violations.length > 0);
   assert.equal(violations[0].clusterId, "A");
+});
+
+test("findGodClusters — power-law fan-in: zero-tail does not collapse percentile (Fathom 5.0.18)", () => {
+  // Round-4 pilot F5 shape: many clusters with 0 inbound + a small
+  // long-tail of clusters with 1-10 inbound. Pre-fix: p95 of the WHOLE
+  // distribution was 0 → any cluster with ≥1 inbound flagged. Post-fix:
+  // percentile computed over non-zero counts only, with `minThresholdValue=3`
+  // hard floor — clusters with incoming=1 or =2 never fire.
+  const incoming = new Map<string, number>();
+  for (let i = 0; i < 90; i++) {
+    incoming.set(`zero-${i}`, 0);
+  }
+  incoming.set("one", 1);
+  incoming.set("two", 2);
+  incoming.set("three", 3);
+  incoming.set("seven", 7);
+  incoming.set("ten", 10);
+  const violations = findGodClusters(incoming, { thresholdPercentile: 95 });
+  // Non-zero distribution = [1, 2, 3, 7, 10]; p95 cutoff index = floor(0.95 * 4) = 3
+  // → counts[3] = 7. max(7, 3) = 7. Clusters ≥7 fire (seven, ten). Pre-fix
+  // this same input would have flagged all 5 non-zero clusters.
+  assert.equal(violations.length, 2);
+  assert.deepEqual(
+    violations.map((v) => v.clusterId).sort(),
+    ["seven", "ten"],
+  );
+  assert.ok(
+    violations[0].thresholdValue >= 3,
+    `thresholdValue should be ≥3, got ${violations[0].thresholdValue}`,
+  );
+});
+
+test("findGodClusters — minThresholdValue binds on flat non-zero distribution (Fathom 5.0.18)", () => {
+  // Distribution where pure p95 over non-zero would yield 1 — the floor
+  // should bind to keep "any cluster with incoming=1" from firing.
+  const incoming = new Map<string, number>();
+  for (let i = 0; i < 90; i++) incoming.set(`zero-${i}`, 0);
+  for (let i = 0; i < 9; i++) incoming.set(`one-${i}`, 1);
+  incoming.set("two", 2);
+  // Non-zero counts: [1,1,1,1,1,1,1,1,1,2]. p95 cutoff idx = floor(0.95*9) = 8 → counts[8] = 1.
+  // max(1, 3) = 3. No cluster has count ≥3 → no violations.
+  const violations = findGodClusters(incoming, { thresholdPercentile: 95 });
+  assert.equal(violations.length, 0);
+});
+
+test("findGodClusters — all-zero workspace returns empty (Fathom 5.0.18)", () => {
+  const incoming = new Map<string, number>();
+  for (let i = 0; i < 20; i++) {
+    incoming.set(`C${i}`, 0);
+  }
+  // No non-zero counts at all → empty (no candidates to flag).
+  assert.equal(findGodClusters(incoming, { thresholdPercentile: 95 }).length, 0);
+});
+
+test("findGodClusters — minThresholdValue override (operator can opt down to 1) (Fathom 5.0.18)", () => {
+  const incoming = new Map<string, number>();
+  for (let i = 0; i < 90; i++) incoming.set(`zero-${i}`, 0);
+  incoming.set("one", 1);
+  incoming.set("two", 2);
+  const violations = findGodClusters(incoming, {
+    thresholdPercentile: 95,
+    minThresholdValue: 1,
+  });
+  // With floor lowered to 1, both non-zero clusters surface.
+  assert.equal(violations.length, 2);
 });
 
 // --- buildIncomingCounts --------------------------------------------------
