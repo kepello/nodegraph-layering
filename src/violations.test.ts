@@ -278,6 +278,50 @@ test("findGodClusters — minThresholdValue override (operator can opt down to 1
   assert.equal(violations.length, 2);
 });
 
+test("findGodClusters — attaches sccMemberOf when cluster is in an SCC (Fathom 5.0.37)", () => {
+  // Round-6 pilot F13: both god-clusters on Fathom (aadaec8cd75c2e5f,
+  // 255371371789ff09) live inside the same SCC (cycle:101c2a21cbba8eba).
+  // Operators get two violations for the same structural cause — the
+  // dense incoming-edge profile that makes a cluster god-shaped is
+  // also what makes it the SCC sink. Cross-referencing the cycleId on
+  // the god-cluster surface lets consumers de-duplicate at read time.
+  const incoming = new Map([
+    ["A", 10],
+    ["B", 10],
+    ["C", 10],
+    ["D", 10],
+    ["E", 10],
+  ]);
+  const cycleId = new Map([
+    ["A", "cycle:A"],
+    ["B", "cycle:A"],
+  ]);
+  const violations = findGodClusters(incoming, {
+    thresholdPercentile: 95,
+    cycleId,
+  });
+  const a = violations.find((v) => v.clusterId === "A");
+  assert.ok(a !== undefined);
+  assert.equal(a.sccMemberOf, "cycle:A");
+  const c = violations.find((v) => v.clusterId === "C");
+  assert.ok(c !== undefined);
+  assert.equal(c.sccMemberOf, undefined);
+});
+
+test("findGodClusters — no sccMemberOf when cycleId option omitted (Fathom 5.0.37)", () => {
+  const incoming = new Map([
+    ["A", 10],
+    ["B", 10],
+    ["C", 10],
+    ["D", 10],
+    ["E", 10],
+  ]);
+  const violations = findGodClusters(incoming);
+  for (const v of violations) {
+    assert.equal(v.sccMemberOf, undefined);
+  }
+});
+
 // --- buildIncomingCounts --------------------------------------------------
 
 test("buildIncomingCounts — sums dep targets correctly", () => {

@@ -35,6 +35,15 @@ export interface GodClusterViolation {
   incomingCount: number;
   thresholdPercentile: number;
   thresholdValue: number;
+  /**
+   * Cycle id when this cluster is also a member of an SCC of size > 1
+   * (Fathom row 5.0.37). Dense incoming fan-in is the structural cause
+   * of both god-cluster firing AND SCC sinkhood — consumers can use
+   * this back-pointer to de-duplicate the two violation surfaces.
+   * Absent when the cluster is not in an SCC or when the caller didn't
+   * pass `cycleId` to `findGodClusters`.
+   */
+  sccMemberOf?: string;
 }
 
 /**
@@ -123,6 +132,14 @@ export interface GodClusterOptions {
    * percentile. Default 3.
    */
   minThresholdValue?: number;
+  /**
+   * Fathom row 5.0.37: when provided, each emitted god-cluster carries
+   * `sccMemberOf` populated from this map. Typically `layering.cycleId`
+   * from the `LayeringResult`. Consumers de-duplicating against the
+   * `cyclic-dependency` violation surface read this field instead of
+   * re-joining the two violation lists by clusterId.
+   */
+  cycleId?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -165,13 +182,16 @@ export function findGodClusters(
   const violations: GodClusterViolation[] = [];
   for (const [clusterId, count] of incomingByCluster) {
     if (count >= thresholdValue && count > 0) {
-      violations.push({
+      const violation: GodClusterViolation = {
         kind: "god-cluster",
         clusterId,
         incomingCount: count,
         thresholdPercentile,
         thresholdValue,
-      });
+      };
+      const scc = options.cycleId?.get(clusterId);
+      if (scc !== undefined) violation.sccMemberOf = scc;
+      violations.push(violation);
     }
   }
   violations.sort((a, b) => {

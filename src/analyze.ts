@@ -72,7 +72,12 @@ export function analyzeLayering(
   const cyclicDependencies = findCyclicDependencies(layering);
   const backEdges = findBackEdges(layering, dependsOn);
   const incomingByCluster = buildIncomingCounts(clusterIds, dependsOn);
-  const godClusters = findGodClusters(incomingByCluster, options.godCluster);
+  // Fathom row 5.0.37: thread layering.cycleId into god-cluster
+  // emission so each violation cross-references its SCC (when in one).
+  const godClusters = findGodClusters(incomingByCluster, {
+    ...options.godCluster,
+    cycleId: layering.cycleId,
+  });
 
   return {
     layerNumber: layering.layerNumber,

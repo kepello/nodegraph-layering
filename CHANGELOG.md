@@ -2,6 +2,24 @@
 
 All notable changes to `@kepello/nodegraph-layering`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] — 2026-05-19
+
+Adds — `GodClusterViolation.sccMemberOf?: string` cross-references the cycle id when the god-cluster is also in an SCC. New `GodClusterOptions.cycleId?` map opts a caller into the cross-reference. Closes Fathom row 5.0.37. TDD-driven.
+
+### Added
+
+- `GodClusterViolation.sccMemberOf?: string` — present when the cluster is a member of an SCC of size > 1 AND the caller passed `cycleId` to `findGodClusters`. Absent otherwise.
+- `GodClusterOptions.cycleId?: ReadonlyMap<string, string>` — typically `layering.cycleId` from a `LayeringResult`. `analyzeLayering` wires this automatically so consumers using the convenience wrapper get the cross-reference for free.
+
+### Why
+
+Round-6 pilot F13: both god-clusters on the Fathom workspace (`aadaec8cd75c2e5f`, `255371371789ff09`) live inside the same SCC (`cycle:101c2a21cbba8eba`). Dense incoming fan-in is the structural cause of both god-cluster firing AND SCC sinkhood — operators get two violations for one underlying issue. Surfacing the cycleId on the god-cluster lets consumers de-duplicate at read time without re-joining the two violation lists by clusterId.
+
+### Tests
+
+- 2 new regression tests: `sccMemberOf` populated when clusterId is in the supplied cycleId map; absent when the option is omitted.
+- 45/45 tests pass.
+
 ## [0.3.0] — 2026-05-17
 
 Fix — `findGodClusters` percentile threshold no longer collapses to 0 on power-law fan-in distributions. Closes Fathom row 5.0.18 (round-4 Opus pilot F5).
