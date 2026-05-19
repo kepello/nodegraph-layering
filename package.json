@@ -23,7 +23,7 @@
   },
   "peerDependencies": {
     "@kepello/nodegraph-clusters": "^0.1.0",
-    "@kepello/nodegraph-core": "^1.4.0"
+    "@kepello/nodegraph-core": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
