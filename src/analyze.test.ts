@@ -91,6 +91,46 @@ test("analyzeLayering — missing dependsOn treats cluster as sink", () => {
   assert.equal(layering.layerNumber.get("B"), 0);
 });
 
+test("analyzeLayering — layerNumber size equals input cluster count (no phantom targets) (Fathom round-9 F2 / 5.0.45)", () => {
+  // Round-9 pilot F2: `code.layering_summary.clusterCount` over-counted
+  // by 14 on the Fathom workspace (310 reported vs 296 live clusters).
+  // Root cause: `clusterOverlay.listClusters()` returns live clusters,
+  // but those clusters' `metadata.dependsOn` arrays may contain
+  // `targetClusterId` references to clusters that have since been
+  // tombstoned by the 5.0.7.1 stale-tombstone pass. The underlying
+  // Tarjan SCC algorithm documents that targets-not-in-`nodes` are
+  // still traversed; phantom targets end up in `componentMembers`
+  // and `layerNumber`, inflating `layerNumber.size`.
+  //
+  // Invariant: `layering.layerNumber.size === clusterIds.length`.
+  // Stale targets are filtered out of the `dependsOn` map BEFORE
+  // computeLayering runs.
+  const knownIds = new Set(["A", "B", "C"]);
+  const clusters: ClusterNode[] = [
+    // A depends on B (known) AND "STALE-1" / "STALE-2" (phantom — no live cluster).
+    cluster("A", [
+      { targetClusterId: "B", rawEdgeCount: 1, weightedEdgeCount: 1 },
+      { targetClusterId: "STALE-1", rawEdgeCount: 1, weightedEdgeCount: 1 },
+      { targetClusterId: "STALE-2", rawEdgeCount: 1, weightedEdgeCount: 1 },
+    ]),
+    cluster("B", [{ targetClusterId: "C", rawEdgeCount: 1, weightedEdgeCount: 1 }]),
+    cluster("C"),
+  ];
+  const layering = analyzeLayering(clusters);
+  assert.equal(
+    layering.layerNumber.size,
+    3,
+    `layerNumber.size should equal known cluster count (3), got ${layering.layerNumber.size} — phantom dependsOn targets leaked into the SCC computation`,
+  );
+  // Sanity: phantom ids never appear in layerNumber.
+  for (const id of layering.layerNumber.keys()) {
+    assert.ok(
+      knownIds.has(id),
+      `unknown id '${id}' assigned a layer — should have been filtered`,
+    );
+  }
+});
+
 test("analyzeLayering — god-cluster surfaces high-fan-in cluster", () => {
   // 10 clusters all depending on H; H has fan-in 9, others 0.
   const clusters: ClusterNode[] = [

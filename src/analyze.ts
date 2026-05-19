@@ -59,17 +59,33 @@ export function analyzeLayering(
     }>;
   }> = [];
 
+  // First pass: enumerate known clusterIds. Required so the second
+  // pass can filter `dependsOn` targets against the known set.
+  for (const node of clusters) {
+    clusterIds.push(node.metadata.clusterId);
+  }
+  const knownClusterIds = new Set(clusterIds);
+
+  // Second pass: build dependsOn + lightweight clusters, filtering
+  // targets that aren't in the known set. Per Fathom row 5.0.45
+  // (round-9 F2): cluster metadata may carry stale `dependsOn` entries
+  // pointing at clusters tombstoned since insert (the 5.0.7.1 cleanup
+  // pass tombstones cluster nodes but doesn't rewrite live clusters'
+  // `dependsOn` arrays — that's a known design choice for content-hash
+  // stability). Without this filter, Tarjan traverses the stale
+  // targets and inflates `layerNumber.size` by the count of distinct
+  // phantom targets.
   for (const node of clusters) {
     const cid = node.metadata.clusterId;
-    clusterIds.push(cid);
     const deps = node.metadata.dependsOn ?? [];
-    if (deps.length > 0) {
+    const liveDeps = deps.filter((d) => knownClusterIds.has(d.targetClusterId));
+    if (liveDeps.length > 0) {
       dependsOn.set(
         cid,
-        deps.map((d) => d.targetClusterId),
+        liveDeps.map((d) => d.targetClusterId),
       );
     }
-    lightweightClusters.push({ clusterId: cid, dependsOn: deps });
+    lightweightClusters.push({ clusterId: cid, dependsOn: liveDeps });
   }
 
   const layering: LayeringResult = computeLayering({ clusterIds, dependsOn });
