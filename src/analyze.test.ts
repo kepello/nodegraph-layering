@@ -17,7 +17,11 @@ import { analyzeLayering } from "./analyze.js";
 /** Build a synthetic cluster node shape matching ClusterNode. */
 function cluster(
   clusterId: string,
-  dependsOn?: ReadonlyArray<{ targetClusterId: string; edgeCount: number }>,
+  dependsOn?: ReadonlyArray<{
+    targetClusterId: string;
+    rawEdgeCount: number;
+    weightedEdgeCount: number;
+  }>,
 ): ClusterNode {
   return {
     id: clusterId,
@@ -41,8 +45,8 @@ function cluster(
 test("analyzeLayering — chain produces ascending layers and no violations", () => {
   // A → B → C (sink)
   const clusters: ClusterNode[] = [
-    cluster("A", [{ targetClusterId: "B", edgeCount: 1 }]),
-    cluster("B", [{ targetClusterId: "C", edgeCount: 1 }]),
+    cluster("A", [{ targetClusterId: "B", rawEdgeCount: 1, weightedEdgeCount: 1 }]),
+    cluster("B", [{ targetClusterId: "C", rawEdgeCount: 1, weightedEdgeCount: 1 }]),
     cluster("C"),
   ];
   const layering = analyzeLayering(clusters);
@@ -55,8 +59,8 @@ test("analyzeLayering — chain produces ascending layers and no violations", ()
 
 test("analyzeLayering — cycle surfaces as a cyclic-dependency violation", () => {
   const clusters: ClusterNode[] = [
-    cluster("X", [{ targetClusterId: "Y", edgeCount: 1 }]),
-    cluster("Y", [{ targetClusterId: "X", edgeCount: 1 }]),
+    cluster("X", [{ targetClusterId: "Y", rawEdgeCount: 1, weightedEdgeCount: 1 }]),
+    cluster("Y", [{ targetClusterId: "X", rawEdgeCount: 1, weightedEdgeCount: 1 }]),
   ];
   const layering = analyzeLayering(clusters);
   assert.equal(layering.cyclicDependencies.length, 1);
@@ -65,7 +69,7 @@ test("analyzeLayering — cycle surfaces as a cyclic-dependency violation", () =
 
 test("analyzeLayering — DSM renders with condensation order", () => {
   const clusters: ClusterNode[] = [
-    cluster("A", [{ targetClusterId: "B", edgeCount: 3 }]),
+    cluster("A", [{ targetClusterId: "B", rawEdgeCount: 3, weightedEdgeCount: 3 }]),
     cluster("B"),
   ];
   const layering = analyzeLayering(clusters);
@@ -94,7 +98,7 @@ test("analyzeLayering — god-cluster surfaces high-fan-in cluster", () => {
   ];
   for (let i = 0; i < 9; i++) {
     clusters.push(
-      cluster(`C${i}`, [{ targetClusterId: "H", edgeCount: 1 }]),
+      cluster(`C${i}`, [{ targetClusterId: "H", rawEdgeCount: 1, weightedEdgeCount: 1 }]),
     );
   }
   const layering = analyzeLayering(clusters, {

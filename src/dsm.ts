@@ -17,7 +17,17 @@ export interface DSMInput {
    */
   clusters: ReadonlyArray<{
     clusterId: string;
-    dependsOn?: ReadonlyArray<{ targetClusterId: string; edgeCount: number }>;
+    /**
+     * Matches `ClusterMetadata.dependsOn` from `@kepello/nodegraph-clusters`.
+     * Per Fathom 5.0.28(d), each dep carries both `rawEdgeCount` (integer
+     * count of contributing edges) and `weightedEdgeCount` (sum of per-edge
+     * weights). The DSM cell holds `rawEdgeCount` — counts, not weights.
+     */
+    dependsOn?: ReadonlyArray<{
+      targetClusterId: string;
+      rawEdgeCount: number;
+      weightedEdgeCount: number;
+    }>;
   }>;
   /**
    * Optional cluster ordering. When provided, the DSM rows/columns
@@ -72,7 +82,7 @@ export function renderDSM(input: DSMInput): DSMResult {
       const targetIdx = index.get(dep.targetClusterId);
       if (targetIdx === undefined) continue;
       if (targetIdx === sourceIdx) continue;
-      matrix[sourceIdx][targetIdx] = dep.edgeCount;
+      matrix[sourceIdx][targetIdx] = dep.rawEdgeCount;
     }
   }
 

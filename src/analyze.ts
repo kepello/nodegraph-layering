@@ -52,7 +52,11 @@ export function analyzeLayering(
   const dependsOn = new Map<string, string[]>();
   const lightweightClusters: Array<{
     clusterId: string;
-    dependsOn?: ReadonlyArray<{ targetClusterId: string; edgeCount: number }>;
+    dependsOn?: ReadonlyArray<{
+      targetClusterId: string;
+      rawEdgeCount: number;
+      weightedEdgeCount: number;
+    }>;
   }> = [];
 
   for (const node of clusters) {

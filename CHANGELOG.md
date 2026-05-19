@@ -20,6 +20,10 @@ Round-6 pilot F13: both god-clusters on the Fathom workspace (`aadaec8cd75c2e5f`
 - 2 new regression tests: `sccMemberOf` populated when clusterId is in the supplied cycleId map; absent when the option is omitted.
 - 45/45 tests pass.
 
+### Also fixed
+
+- `DSMInput.clusters[].dependsOn` and `analyzeLayering`'s internal `lightweightClusters` shape now use `rawEdgeCount` + `weightedEdgeCount` (matching `ClusterDependency` from `@kepello/nodegraph-clusters@0.5.0+`). The package was carrying a latent build error from the 5.0.28(d) `edgeCount` rename — surfaced here when re-building. `renderDSM` now reads `rawEdgeCount` for the matrix cell (the existing semantic: integer count of contributing edges, not weighted sum).
+
 ## [0.3.0] — 2026-05-17
 
 Fix — `findGodClusters` percentile threshold no longer collapses to 0 on power-law fan-in distributions. Closes Fathom row 5.0.18 (round-4 Opus pilot F5).

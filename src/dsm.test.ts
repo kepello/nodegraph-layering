@@ -30,7 +30,7 @@ test("renderDSM — single cluster produces 1x1 zero matrix", () => {
 test("renderDSM — A → B with weight 3", () => {
   const result = renderDSM({
     clusters: [
-      { clusterId: "A", dependsOn: [{ targetClusterId: "B", edgeCount: 3 }] },
+      { clusterId: "A", dependsOn: [{ targetClusterId: "B", rawEdgeCount: 3, weightedEdgeCount: 3 }] },
       { clusterId: "B" },
     ],
   });
@@ -43,7 +43,7 @@ test("renderDSM — A → B with weight 3", () => {
 test("renderDSM — self-loops always 0 (depends-on-self is meaningless)", () => {
   const result = renderDSM({
     clusters: [
-      { clusterId: "A", dependsOn: [{ targetClusterId: "A", edgeCount: 99 }] },
+      { clusterId: "A", dependsOn: [{ targetClusterId: "A", rawEdgeCount: 99, weightedEdgeCount: 99 }] },
     ],
   });
   assert.equal(result.matrix[0][0], 0);
@@ -81,8 +81,8 @@ test("renderDSM — unknown targets in dependsOn are silently skipped", () => {
       {
         clusterId: "A",
         dependsOn: [
-          { targetClusterId: "B", edgeCount: 1 },
-          { targetClusterId: "OFF_GRAPH", edgeCount: 99 },
+          { targetClusterId: "B", rawEdgeCount: 1, weightedEdgeCount: 1 },
+          { targetClusterId: "OFF_GRAPH", rawEdgeCount: 99, weightedEdgeCount: 99 },
         ],
       },
       { clusterId: "B" },
@@ -96,9 +96,9 @@ test("renderDSM — unknown targets in dependsOn are silently skipped", () => {
 test("renderDSM — diamond shape rendered correctly", () => {
   const result = renderDSM({
     clusters: [
-      { clusterId: "A", dependsOn: [{ targetClusterId: "B", edgeCount: 1 }, { targetClusterId: "C", edgeCount: 1 }] },
-      { clusterId: "B", dependsOn: [{ targetClusterId: "D", edgeCount: 1 }] },
-      { clusterId: "C", dependsOn: [{ targetClusterId: "D", edgeCount: 1 }] },
+      { clusterId: "A", dependsOn: [{ targetClusterId: "B", rawEdgeCount: 1, weightedEdgeCount: 1 }, { targetClusterId: "C", rawEdgeCount: 1, weightedEdgeCount: 1 }] },
+      { clusterId: "B", dependsOn: [{ targetClusterId: "D", rawEdgeCount: 1, weightedEdgeCount: 1 }] },
+      { clusterId: "C", dependsOn: [{ targetClusterId: "D", rawEdgeCount: 1, weightedEdgeCount: 1 }] },
       { clusterId: "D" },
     ],
     order: ["A", "B", "C", "D"],
