@@ -2,6 +2,18 @@
 
 All notable changes to `@kepello/nodegraph-layering`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.1] — 2026-07-05
+
+Peer-dep range drift swept workspace-wide (Fathom row 0.5.2, `cli-peerdep-range-drift`). `@kepello/nodegraph-clusters` `^0.1.0` → `^0.12.0` was a genuinely broken floor (clusters has shipped past 0.2.0 since this range was last set). `@kepello/nodegraph-core` `^5.0.0` → `^5.7.1` is floor-only staleness. No code change; `package-lock.json` refreshed.
+
+### Changed
+
+- **`package.json` peerDependencies** — see drift table above. Patch bump.
+
+### Tests
+
+Suite unchanged: 46/46 pass. `npm run build` clean.
+
 ## [0.4.0] — 2026-05-19
 
 Adds — `GodClusterViolation.sccMemberOf?: string` cross-references the cycle id when the god-cluster is also in an SCC. New `GodClusterOptions.cycleId?` map opts a caller into the cross-reference. Closes Fathom row 5.0.37. TDD-driven.
