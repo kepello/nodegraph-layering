@@ -2,6 +2,18 @@
 
 All notable changes to `@kepello/nodegraph-layering`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.2] — 2026-07-14
+
+Peer-floor sync — Fathom row `overlay-projection-discards-14-of-19-facets` (3.1.0.7) adds an optional `facets` field to `@kepello/nodegraph-clusters@0.15.0`'s `ElementInput`. No code change here.
+
+### Changed
+
+- `package.json` — `@kepello/nodegraph-clusters` peer floor `^0.14.0` → `^0.15.0` (0.x caret — did not admit `0.15.0` without the bump).
+
+### Tests
+
+Suite unchanged: 46/46 pass. `npm run build` clean.
+
 ## [0.5.1] — 2026-07-05
 
 Peer-dep range drift swept workspace-wide (Fathom row 0.5.2, `cli-peerdep-range-drift`). `@kepello/nodegraph-clusters` `^0.1.0` → `^0.12.0` was a genuinely broken floor (clusters has shipped past 0.2.0 since this range was last set). `@kepello/nodegraph-core` `^5.0.0` → `^5.7.1` is floor-only staleness. No code change; `package-lock.json` refreshed.
